@@ -49,8 +49,6 @@ def url_to_html(url):
         }
 
         user_agent_index = (user_agent_index + 1) % len(user_agents_list)
-
-        # request_site = Request(url, headers={'User-Agent': user_agents_list[user_agent_index]})
         request_site = Request(url, headers=hdr)
 
         if num_of_tries > 10:
@@ -58,7 +56,7 @@ def url_to_html(url):
         try:
             page = urlopen(request_site, timeout=10)
             found = True
-            print("succ")
+            # print("succ")
         except urllib.error.HTTPError as e:
             print(e.fp.read())
             num_of_tries = num_of_tries + 1
@@ -104,13 +102,15 @@ def scrape():
 
             # Transaction details
             if i == 1:
-                soup = BeautifulSoup(url_to_html(link), "html.parser")
-                if soup == "":
+                url_transaction = url_to_html(link)
+                if url_transaction == "":
                     print("Scraper blocked")
                     return
 
+                soup_transaction = BeautifulSoup(url_transaction, "html.parser")
+
                 # Price
-                price = soup.find("span", {"class": "field-type-money"})
+                price = soup_transaction.find("span", {"class": "field-type-money"})
                 if price is None:
                     arr[4] = "undisclosed"
                 else:
@@ -124,22 +124,25 @@ def scrape():
                 else:
                     index_industries = 7
                     index_rank = 10
-                soup = BeautifulSoup(url_to_html(link), "html.parser")
-                if soup == "":
+
+                url_company = url_to_html(link)
+                if url_company == "":
                     print("Scraper blocked")
                     return
 
-                scrape_task_2(soup)
+                soup_company = BeautifulSoup(url_company, "html.parser")
+
+                scrape_task_2(soup_company)
 
                 # Industries
                 industries_arr = []
-                industries = soup.find_all("div", {"class": "chip-text"})
+                industries = soup_company.find_all("div", {"class": "chip-text"})
                 for ind in industries:
                     industries_arr.append(ind.string)
                 arr[index_industries] = industries_arr
 
                 # Headquarters
-                hr = soup.find('span', string='Headquarters Regions')
+                hr = soup_company.find('span', string='Headquarters Regions')
                 if hr is not None:
                     root = hr.parent.parent.parent
                     arr[index_industries + 1] = root.find('a')['title']
@@ -147,7 +150,7 @@ def scrape():
                     arr[index_industries + 1] = 'undisclosed'
 
                 # CB Rank
-                rank = soup.find('a', {
+                rank = soup_company.find('a', {
                     'href': re.compile('^/search/organization.companies/field/organizations/rank_org_company.*')})
                 if rank is None:
                     arr[index_rank] = 'undisclosed'
@@ -179,7 +182,7 @@ def scrape_task_2(soup):
             writer.writerow(['Company Name', 'Headquarter Location', 'Employee Count Range', 'Founding Type',
                              'Type of a Company', 'Company Rank', 'Total Funding Amount', 'Number of Contacts',
                              'Number of Employee Profiles', 'List of Employee Profiles', 'Industries', 'Founded Date',
-                             'Company Type', 'Contact Email', 'Contact Phone'])
+                             'Contact Email', 'Contact Phone'])
 
         arr = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
 
@@ -299,6 +302,39 @@ def scrape_task_2(soup):
                     arr[9] = 'undisclosed'
             else:
                 arr[9] = 'undisclosed'
+
+        # Industries
+        industries_arr = []
+        industries = soup.find_all("div", {"class": "chip-text"})
+        for ind in industries:
+            industries_arr.append(ind.string)
+        arr[10] = industries_arr
+
+        # Founded Date
+        date = soup.find('span', string='Founded Date')
+        if date is not None:
+            root = date.parent.parent.parent
+            arr[11] = root.find(class_='component--field-formatter').string
+        else:
+            arr[11] = 'undisclosed'
+
+        # Contact Email
+        email = soup.find('span', string='Contact Email')
+        if email is not None:
+            root = email.parent.parent.parent
+            blob = root.find('blob-formatter')
+            arr[12] = blob.contents[0].string
+        else:
+            arr[12] = 'undisclosed'
+
+        # Contact Phone
+        phone = soup.find('span', string='Phone Number')
+        if phone is not None:
+            root = phone.parent.parent.parent
+            blob = root.find('blob-formatter')
+            arr[13] = '_' + blob.contents[0].string
+        else:
+            arr[13] = 'undisclosed'
 
         writer.writerow(arr)
     file2.close()
